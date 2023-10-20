@@ -1,0 +1,454 @@
+openapi: 3.0.0
+
+info:
+  description: |
+    These are the endpoints for BookNook project.
+  version: "1.0.0"
+  title: BookNook
+  termsOfService: 'http://swagger.io/terms/'
+  contact:
+    email: 'bt2509@columbia.edu'
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+
+servers:
+  # Added by API Auto Mocking Plugin
+  # NOTE: This is still the example swagger server. Will need to replace to the API Gateway generated url.
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/CloudComputingTeam/CloudComputingProject/1.0.0
+  - url: 'https://petstore.swagger.io/v2'
+
+tags:
+  - name: book
+    description: Everything related to books
+  - name: bookstore
+    description: Book store related
+  - name: user
+    description: Operations about user
+
+paths:
+  /book/search:
+    get:
+      tags:
+        - book
+      summary: Search books that matches the given criterias.
+      description: Allows user to search book by providing some combination of title, author, genre and publication date.
+      parameters:
+        - name: title
+          in: query
+          description: Partial or full titles of books
+          required: false
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+        - name: genre
+          in: query
+          description: Genres of books
+          required: false
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+        - name: author
+          in: query
+          description: Authors of books
+          required: false
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+        - name: publication_date_start
+          in: query
+          description: The start of publication date for books
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: publication_date_end
+          in: query
+          description: The end of publication date for books
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Successful operation. Returns an array of ISBN matching the search criterias.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '400':
+          description: Invalid status value
+      security:
+        - booknook_auth:
+            - 'write'
+            - 'read'
+  /book/getBookDetails:
+    get:
+      tags:
+        - book
+      summary: Get detail info about a book
+      description: Allows user to get a book info by providing a ISBN.
+      parameters:
+        - name: isbn
+          in: query
+          description: ISBN of the book
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation. Returns a book.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          description: Invalid ISBN value
+      security:
+        - booknook_auth:
+            - 'write'
+            - 'read'
+  /book/recommend:
+    get:
+      tags:
+        - book
+      summary: Recommend books based on user interests
+      description: Provide a list of ISBN for books that user may be interested in.
+      parameters:
+        - name: user_id
+          in: query
+          description: the user id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation. Returns a book.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '400':
+          description: Invalid status value
+      security:
+        - booknook_auth:
+            - 'write'
+            - 'read'
+
+  /bookstore/search:
+    get:
+      tags:
+        - bookstore
+      summary: Search bookstore near the given zipcode
+      parameters:
+        - name: zipcode
+          in: query
+          required: true
+          schema:
+            type: 'string'
+            format: 'zip-code'
+      responses:
+        '200':
+          description: Successful operation. Returns a list of bookstore ids.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '400':
+          description: Invalid status value
+      security:
+        - booknook_auth:
+            - 'write'
+            - 'read'
+  /bookstore/getStoreDetail:
+    get:
+      tags:
+        - bookstore
+      summary: Search bookstore near the given zipcode
+      parameters:
+        - name: bookstore_id
+          in: query
+          required: true
+          schema:
+            type: 'string'
+      responses:
+        '200':
+          description: Successful operation. Returns the details of the given book store.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookStore'
+        '400':
+          description: Invalid status value
+      security:
+        - booknook_auth:
+            - 'write'
+            - 'read'
+
+  /user:
+    post:
+      tags:
+        - user
+      summary: Create user
+      description: This can only be done by the logged in user.
+      operationId: createUser
+      responses:
+        '200':
+          description: successful operation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        description: Created user object
+        required: true
+  /user/login:
+    get:
+      tags:
+        - user
+      summary: Logs user into the system
+      parameters:
+        - name: username
+          in: query
+          description: The user name for login
+          required: true
+          schema:
+            type: string
+        - name: password
+          in: query
+          description: The password for login in clear text
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          headers:
+            X-Rate-Limit:
+              description: calls per hour allowed by the user
+              schema:
+                type: integer
+                format: int32
+            X-Expires-After:
+              description: date in UTC when token expires
+              schema:
+                type: string
+                format: date-time
+          content:
+            application/json:
+              schema:
+                type: string
+            application/xml:
+              schema:
+                type: string
+        '400':
+          description: Invalid username/password supplied
+  /user/logout:
+    get:
+      tags:
+        - user
+      summary: Logs out current logged in user session
+      operationId: logoutUser
+      responses:
+        default:
+          description: successful operation
+  '/user/{username}':
+    get:
+      tags:
+        - user
+      summary: Get user by user name
+      parameters:
+        - name: username
+          in: path
+          description: The name that needs to be fetched. Use user1 for testing.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+    put:
+      tags:
+        - user
+      summary: Updated user
+      description: This can only be done by the logged in user.
+      operationId: updateUser
+      parameters:
+        - name: username
+          in: path
+          description: name that need to be updated
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+        '400':
+          description: Invalid user supplied
+        '404':
+          description: User not found
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        description: Updated user object
+        required: true
+    delete:
+      tags:
+        - user
+      summary: Delete user
+      description: This can only be done by the logged in user.
+      operationId: deleteUser
+      parameters:
+        - name: username
+          in: path
+          description: The name that needs to be deleted
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+  '/user/{user_id}/setPreference':
+    put:
+      tags:
+        - user
+      summary: Set user preference for books
+      description: This can only be done by the logged in user.
+      parameters:
+        - name: user_id
+          in: path
+          description: user id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+        '400':
+          description: Invalid user supplied
+        '404':
+          description: User not found
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Preference'
+        description: User preference
+        required: true
+
+components:
+  schemas:
+    Book:
+      type: object
+      properties:
+        isbn:
+          type: string
+          description: ISBN for the book
+          example: 978-0-13-601970-1
+        title:
+          type: string
+          description: Title of the book
+          example: "Chemistry: An Introduction to General, Organic, & Biological Chemistry (10th Edition)"
+        author:
+          type: string
+          description: Author of the book
+          example: "Timberlake, Karen C."
+        genre:
+          type: array
+          items:
+            type: string
+            description: Genre of the book
+            example: Fiction
+        publication_date:
+          type: string
+          format: date-time
+        summary:
+          type: string
+        cover:
+          type: string
+          description: S3 link to the cover of the book
+    BookStore:
+      type: object
+      properties:
+        bookstore_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        address:
+          type: string
+    User:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        phone:
+          type: string
+    Preference:
+      type: object
+      properties:
+        intent:
+          type: string
+          enum:
+            - like
+            - dislike
+        books:
+          type: array
+          items:
+            type: string
+            description: ISBN of the books that user shows the intent.
+  
+  securitySchemes:
+    booknook_auth:
+      type: oauth2
+      flows:
+        implicit:
+          # NOTE: This url is from mock. Will be updated to something like Amazon Cognito.
+          authorizationUrl: 'http://petstore.swagger.io/oauth/dialog'
+          scopes:
+            write: Grants write access
+            read: Grants read access
