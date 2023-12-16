@@ -1,0 +1,45 @@
+import json
+import boto3
+
+def lambda_handler(event, context):
+    print('Get user details')
+    print("Received event: " + json.dumps(event, indent=2))
+    
+
+    user_id = event["queryStringParameters"]['user_id'] if 'user_id' in event["queryStringParameters"] else ''
+
+    region = 'us-east-2'
+    table_name = 'Users'
+    s3 = boto3.client('s3')
+    dynamodb = boto3.client('dynamodb', region_name = region)
+    
+    key = {}
+    if user_id != "":
+        key['User-ID'] = {'S':user_id}
+        response = dynamodb.get_item(
+            TableName = table_name,
+            Key = key
+        )
+        print('User search done')
+        print("User search result: " + json.dumps(response, indent=2))
+
+        return {
+            "statusCode": 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': 'PUT,POST,GET,OPTIONS',
+                'Access-Control-Allow-Origin': '*',
+                'X-Requested-With': '*'
+            },
+            "body": json.dumps({
+                "results": response['Item']
+            }),
+            "isBase64Encoded": False
+        }
+    else:
+        status_code = 400
+        return {
+            'statusCode': status_code,
+            'body': json.dumps('This is an exception!')
+        }
