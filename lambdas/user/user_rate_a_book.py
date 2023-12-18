@@ -26,11 +26,28 @@ def lambda_handler(event, context):
     print("Received event: " + json.dumps(response, indent=2))
     if response['ResponseMetadata']["HTTPStatusCode"] == 200:
         return {
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': 'PUT,POST,GET,OPTIONS',
+                'Access-Control-Allow-Origin': '*',
+                'X-Requested-With': '*'
+            },
             'statusCode': 200
         }
     else:
         status_code = 400
         return {
             'statusCode': status_code,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': 'PUT,POST,GET,OPTIONS',
+                'Access-Control-Allow-Origin': '*',
+                'X-Requested-With': '*'
+            },
             'body': json.dumps('Not able to rate a book!')
         }
+
+    
+
