@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="This is a starter project for a chatbot concierge application built on AWS.">
+    <meta name="BookNook" content="Mengwen Li">
+
+    <title>Image System</title>
+
+
+
+    <!-- api gateway generated sdk -->
+    <script src="./lib/axios/dist/axios.standalone.js"></script>
+    <script src="./lib/CryptoJS/rollups/hmac-sha256.js"></script>
+    <script src="./lib/CryptoJS/rollups/sha256.js"></script>
+    <script src="./lib/CryptoJS/components/hmac.js"></script>
+    <script src="./lib/CryptoJS/components/enc-base64.js"></script>
+    <script src="./lib/url-template/url-template.js"></script>
+    <script src="./lib/apiGatewayCore/sigV4Client.js"></script>
+    <script src="./lib/apiGatewayCore/apiGatewayClient.js"></script>
+    <script src="./lib/apiGatewayCore/simpleHttpClient.js"></script>
+    <script src="./lib/apiGatewayCore/utils.js"></script>
+
+    <script src="./apigClient.js"></script>
+    <script src="./aws-sdk.min.js"></script>
+
+
+</head>
+
+
+<body>
+    <h1>Congrats! Your customized book list are here</h1>
+
+    <div id=recommandResults></div>
+
+    <h1>To my page</h1>
+    <button onclick="myPage()">My Page</button>
+
+    <h1>Discover More Books</h1>
+    <button onclick="discover()">Discover more interests</button>
+
+    <script>
+        var sdk = apigClientFactory.newClient({});
+        const urlParams = new URLSearchParams(window.location.search)
+    	const user_id = urlParams.get('user_id')
+
+        function getHtml(template) {
+            return template.join('\n');
+        }
+
+	    function getRecommendation(){
+	      sdk.bookRecommendGet({
+	        'user_id': user_id
+	     }, {}, {})
+	      .then((response) => {
+	      	var display = "";
+			console.log(response);
+			var data = response.data;
+			console.log(data);
+			if (data.results && data.results.length == 0) {
+				console.log('received ' + data.results.length);
+				display += getHtml([
+				  '<div>',
+				  'Sorry we don\'t have recommendation for you',
+				  '</div>',
+				])
+				console.log("display...\n" + display)
+				document.getElementById('recommandResults').innerHTML = display
+			}
+			else {
+				var results = data.results;
+				console.log("Get " + results.length + " books");
+				const searchResults = document.querySelector('#recommandResults');
+				const table = document.createElement('table');
+				for (var result of results) {
+				    var imageLink = result["Image-URL-S"]
+				    var bookTitle = result["Book-Title"]
+				    var isbn = result["ISBN"]
+				    const display = document.createElement('div');
+
+				    const box = makeARateHTML(isbn)
+
+					var tr = document.createElement('tr');
+					var td1 = document.createElement('td');
+					var td2 = document.createElement('td');
+					var td3 = document.createElement('td');
+					td1.innerHTML = `<td><img src="${imageLink}"/></td>`
+					td2.innerHTML = `<td> ${bookTitle} </td>`
+					td3.appendChild(box)
+					tr.appendChild(td1)
+					tr.appendChild(td2)
+					tr.appendChild(td3)
+				    display.appendChild(tr);
+				    table.appendChild(display);
+				    searchResults.appendChild(table);
+				}
+			}
+	      })
+	    }
+
+	    function makeARateHTML(isbn) {
+	    	console.log("in coming isbn:" + isbn)
+	    	var rateValue = ""
+		    const box = document.createElement('div');
+		    box.innerHTML = `
+		    	<form id="rate-contianer">
+		            <input id = "rate_${isbn}" type="text" default='0'>/10
+		            <button type="submit">Rate</button>
+		            <span id="action"></span>
+		        </form>`
+
+		    //add eventlisteren here
+			box.addEventListener("input", (e) => {
+				e.preventDefault();
+				const rate = document.querySelector("#rate_"+isbn)
+			    rateValue = rate.value;
+			    console.log(rateValue)
+			})
+
+			box.addEventListener("submit", (e) => {
+			   e.preventDefault();
+			   console.log("Sending request for user " + user_id + " rate " + isbn + " " + rateValue)
+			   sdk.userRatePost({
+			   	'isbn': isbn,
+		        'rate': rateValue,
+		        'user_id': user_id
+		    	}, {}, {})
+			   .then((response) => {
+			   		console.log("MAKE A RATE")
+			   		console.log('RATE response:' + JSON.stringify(response))
+			   		box.innerHTML = `<b>Thanks for rating!</b>`
+			   })
+			})
+			return box
+	    }
+
+	    getRecommendation();
+
+	    function myPage() {
+        	console.log('user_id', user_id)
+          	location.replace("http://cloud-computing-project-booknook-v2.s3-website.us-east-2.amazonaws.com/mypage.html?user_id=" + user_id)
+        }
+
+        function discover() {
+          location.replace("http://cloud-computing-project-booknook-v2.s3-website.us-east-2.amazonaws.com/discover.html?user_id=" + user_id)
+        }
+
+
+    </script>
+</body>
+
+</html>

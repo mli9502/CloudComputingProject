@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="This is a starter project for a chatbot concierge application built on AWS.">
+    <meta name="author" content="Mengwen Li">
+
+    <title>BookNook</title>
+
+    <!-- api gateway generated sdk -->
+    <script src="./lib/axios/dist/axios.standalone.js"></script>
+    <script src="./lib/CryptoJS/rollups/hmac-sha256.js"></script>
+    <script src="./lib/CryptoJS/rollups/sha256.js"></script>
+    <script src="./lib/CryptoJS/components/hmac.js"></script>
+    <script src="./lib/CryptoJS/components/enc-base64.js"></script>
+    <script src="./lib/url-template/url-template.js"></script>
+    <script src="./lib/apiGatewayCore/sigV4Client.js"></script>
+    <script src="./lib/apiGatewayCore/apiGatewayClient.js"></script>
+    <script src="./lib/apiGatewayCore/simpleHttpClient.js"></script>
+    <script src="./lib/apiGatewayCore/utils.js"></script>
+
+    <script src="./apigClient.js"></script>
+    <script src="./aws-sdk.min.js"></script>
+</head>
+
+<body>
+    <h1>BookNook</h1>
+    <p>Use your user id to go to your page</p>
+    <div class="topnav">
+        <form id="search-container">
+            <input id = "user_id" type="text" >
+            <button type="submit">My page</button>
+            <!-- <button onclick="myPage()">My Page</button> -->
+            <span id="action"></span>
+        </form>
+    </div>
+    <p>User id for example: 115973, 53281, 167338, 70245, 46862...</p>
+
+    <script>
+        var user_id = ""
+        const searchQuery_isbn = document.querySelector("#search-container")
+        searchQuery_isbn.addEventListener("input", () => {
+            const user = document.querySelector("#user_id")
+            console.log(user)
+            user_id = user.value;
+            console.log(user_id)
+        })
+
+        searchQuery_isbn.addEventListener("submit", (e) => {
+            e.preventDefault()
+            console.log('user_id', user_id)
+            location.replace("http://cloud-computing-project-booknook-v2.s3-website.us-east-2.amazonaws.com/mypage.html?user_id=" + user_id)
+        })
+        // function myPage() {
+        //     console.log('user_id', user_id)
+        //     location.replace("http://cloud-computing-project-booknook-v2.s3-website.us-east-2.amazonaws.com/mypage.html?user_id=" + user_id)
+        // }
+    </script>
+</body>
+
+</html>

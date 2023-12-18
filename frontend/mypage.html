@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="This is a starter project for a chatbot concierge application built on AWS.">
+    <meta name="author" content="Mengwen Li">
+
+    <title>BookNook</title>
+
+    <!-- api gateway generated sdk -->
+    <script src="./lib/axios/dist/axios.standalone.js"></script>
+    <script src="./lib/CryptoJS/rollups/hmac-sha256.js"></script>
+    <script src="./lib/CryptoJS/rollups/sha256.js"></script>
+    <script src="./lib/CryptoJS/components/hmac.js"></script>
+    <script src="./lib/CryptoJS/components/enc-base64.js"></script>
+    <script src="./lib/url-template/url-template.js"></script>
+    <script src="./lib/apiGatewayCore/sigV4Client.js"></script>
+    <script src="./lib/apiGatewayCore/apiGatewayClient.js"></script>
+    <script src="./lib/apiGatewayCore/simpleHttpClient.js"></script>
+    <script src="./lib/apiGatewayCore/utils.js"></script>
+
+    <script src="./apigClient.js"></script>
+    <script src="./aws-sdk.min.js"></script>
+</head>
+
+
+<body>
+
+    <h1>Discover More Books</h1>
+    <button onclick="discover()">Discover more interests</button>
+
+    <h1>Recommend books for you only</h1>
+    <button onclick="myRecommendation()">Find you favorate book</button>
+
+    <h1>You rated these books</h1>
+    <div id="previousRates"></div>
+
+    <h1>Your nearby bookstores</h1>
+    <div id="nearbyBookStores"></div>
+
+
+    <script>
+        var sleepSetTimeout_ctrl;
+        function sleep(ms) {
+            clearInterval(sleepSetTimeout_ctrl);
+            return new Promise(resolve => sleepSetTimeout_ctrl = setTimeout(resolve, ms));
+        }
+
+        var sdk = apigClientFactory.newClient({});
+
+
+        const urlParams = new URLSearchParams(window.location.search)
+        const user_id = urlParams.get('user_id')
+        console.log('user_id', user_id)
+
+        diplayPastRatesHistory()
+        diplayNearbyBookStores()
+
+        function getHtml(template) {
+            return template.join('\n');
+        }
+
+        function getBookDetails(isbn, display, finish) {
+          sdk.bookGetBookDetailsGet({
+            'isbn': isbn
+          }, {}, {})
+          .then((response) => {
+            console.log('isbn:' + isbn)
+            console.log('book response:' + JSON.stringify(response))
+            var results = response.data.results;
+            var imageLink = results["Image-URL-S"]["S"]
+            var bookTitle = results["Book-Title"]["S"]
+            display += getHtml([
+              '<tr>',
+              '<td>' + imageLink + '</td>',
+              '<td>' + bookTitle + '</td>',
+              '</tr>'
+            ])
+            console.log('before finish isbn: ' + isbn)
+            finish = true
+          })
+        }
+
+        function diplayPastRatesHistory() {
+          var display = "";
+          console.log("user_id in userGetPreviousRatesGet" + user_id)
+          sdk.userGetPreviousRatesGet({
+            'user_id': user_id
+          }, {}, {})
+          .then(async (response) => {
+              console.log(response);
+              var data = response.data;
+              console.log(data);
+              if (data.results && data.results.length == 0) {
+                console.log('received ' + data.results.length);
+                display += getHtml([
+                  '<div>',
+                  'You haven\'t rated any books yet ',
+                  '</div>',
+                ])
+              }
+              else {
+                var results = data.results;
+                display += getHtml(['<div><table>'])
+                console.log("Get " + results.length + "books for user " + user_id);
+                var countInvalidBooks = 0
+                for (var result of results) {
+                    // console.log("result", result);
+                    isbn = result["ISBN"].S
+                    rate = result["Book-Rating"].S
+                    console.log('isbn: ' + isbn)
+                    var finish = false
+                    sdk.bookGetBookDetailsGet({
+                      'isbn': isbn
+                    }, {}, {})
+                    .then((response) => {
+                      console.log('book response:' + JSON.stringify(response))
+                      var results = response.data.results;
+                      console.log("results len:" + results.length)
+                      if (results.length > 0) { //result is string means error message, len > 0
+                        console.log(results + ":" + isbn);
+                        countInvalidBooks += 1
+                        finish = true
+                      }
+                      else {
+                        var imageLink = results["Image-URL-S"]["S"]
+                        var bookTitle = results["Book-Title"]["S"]
+                        display += getHtml([
+                          '<tr>',
+                          '<td>' + '<img src="' + imageLink + '"/>' + '</td>',
+                          '<td>' + bookTitle + '</td>',
+                          '<td>' + rate + '</td>',
+                          '</tr>'
+                        ])
+                        finish = true
+                      }
+                    })
+                    while(!finish){
+                      console.log('sleep')
+                      await sleep(10);
+                    }
+                }
+                display += getHtml(['</table></div>'])
+                if (countInvalidBooks == results.length) {
+                  display += getHtml([
+                    '<div>',
+                    'You haven\'t rated any books yet ',
+                    '</div>',
+                  ])
+                }
+              }
+              console.log("display...\n" + display)
+              document.getElementById('previousRates').innerHTML = display
+          })
+        }
+
+        function diplayNearbyBookStores() {
+          var display = "";
+          sdk.bookstoreSearchGet({
+            'user_id': user_id
+          }, {}, {})
+          .then((response) => {
+              console.log('bookstroe response:' + response)
+              console.log('bookstroe response len:' + response.length)
+              var data = response.data;
+              if (data.results && data.results.length == 0) {
+                console.log('received ' + data.results.length);
+                display += getHtml([
+                  '<div>',
+                  'You don\'t have any bookstores nearby',
+                  '</div>',
+                ])
+              }
+              else{
+                var results = data.results;
+                display += getHtml(['<div><table>'])
+                for (var result of results) {
+                    console.log("result", result);
+                    var seperate = result["Text"].split(",")
+                    var bookstoreName = seperate[0]
+                    var bookstoreAddress = seperate.slice(1, seperate.length - 1)
+                    display += getHtml([
+                      '<tr>',
+                      '<td>' + bookstoreName + '</td>',
+                      '<td>' + bookstoreAddress + '</td>',
+                      '</tr>'
+                    ])
+                }
+                display += getHtml(['</table></div>'])
+              }
+              console.log("display...")
+              console.log(display)
+              document.getElementById('nearbyBookStores').innerHTML = display
+          })
+        }
+
+        function discover() {
+          location.replace("http://cloud-computing-project-booknook-v2.s3-website.us-east-2.amazonaws.com/discover.html?user_id=" + user_id)
+        }
+
+        function myRecommendation() {
+          console.log('user_id', user_id)
+            location.replace("http://cloud-computing-project-booknook-v2.s3-website.us-east-2.amazonaws.com/recommend.html?user_id=" + user_id)
+        }
+
+    </script>
+
+</body>
+
+</html>
