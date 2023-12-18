@@ -1,19 +1,73 @@
 import json
+import boto3
+from random import randint
+from boto3.dynamodb.conditions import Key
+
+def get_random_primary_keys():
+    region = 'us-east-2'
+    table_name = 'Books'
+    dynamodb = boto3.resource('dynamodb', region_name = region)
+    table = dynamodb.Table(table_name)
+    num_iter = 0
+    while True:
+        if num_iter > 100:
+            break
+        rnd = randint(166789222, 966789222)
+        # print(rnd)
+        r = table.scan(
+            Limit=50,
+            TableName=table_name,
+            FilterExpression=Key('ISBN').gt(str(rnd))
+        )
+        if r['Count'] == 0:
+            num_iter += 1
+            continue
+        return r['Items']
+    return None
+
+def get_unique_random_primary_keys(num_books = 10):
+    rand_isbns = set()
+    rtn = []
+    while len(rand_isbns) < num_books:
+        tmp_keys = get_random_primary_keys()
+        if tmp_keys is None:
+            continue
+        # print(rand_isbns)
+        for tmp in tmp_keys:
+            # print(tmp)
+            if tmp['ISBN'] in rand_isbns:
+                # print('skipping ' + tmp['ISBN'])
+                continue
+            rand_isbns.add(tmp['ISBN'])
+            rtn.append(tmp)
+            if len(rand_isbns) == num_books:
+                break
+    print(rand_isbns)
+    print('\n')
+    return rtn
 
 def lambda_handler(event, context):
-
     print("Received event: " + json.dumps(event, indent=2))
     user_id = event["queryStringParameters"]['user_id'] if 'user_id' in event["queryStringParameters"] else ''
     print('Recommnd book for user ', user_id)
    
-    if user_id is '':
+    if user_id == '':
         return {
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': 'PUT,POST,GET,OPTIONS',
+                'Access-Control-Allow-Origin': '*',
+                'X-Requested-With': '*'
+            },
             'statusCode': status_code,
             'body': json.dumps('user id should be provided!')
         }
     else:
-        #TODO: Remove below tmp, provide recommendation algorithm here -> input: user-id, return: a list of ISBN
-        tmp = ["515116386", "316105368", "689113617", "812090241"]
+        print(user_id)
+        rand_primary_key = get_unique_random_primary_keys()
+        print(rand_primary_key)
+
         return {
             "statusCode": 200,
             'headers': {
@@ -24,7 +78,7 @@ def lambda_handler(event, context):
                 'X-Requested-With': '*'
             },
             "body": json.dumps({
-                "results": tmp
+                "results": get_unique_random_primary_keys()
             }),
             "isBase64Encoded": False
         }
