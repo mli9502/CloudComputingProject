@@ -18,7 +18,10 @@ def lambda_handler(event, context):
     s3 = boto3.client('s3')
     dynamodb = boto3.client('dynamodb', region_name = region)
     
-    key = {}
+    key={}
+    values = {}
+    names = {}
+    expression = ""
     if isbn != "":
         key['ISBN'] = {'S':isbn}
         response = dynamodb.get_item(
@@ -27,33 +30,83 @@ def lambda_handler(event, context):
         )
         print('book search done')
         print("Book search result: " + json.dumps(response, indent=2))
+        # return response['Item']
+        return {
+            "statusCode": 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': 'PUT,POST,GET,OPTIONS',
+                'Access-Control-Allow-Origin': '*',
+                'X-Requested-With': '*'
+            },
+            "body": json.dumps({
+                "results": response['Item']
+            }),
+            "isBase64Encoded": False
+        }
+        
     else:
         if title != "":
-            key['Book-Title'] = {'S':title}
+            values[':booktitle'] = {'S':title}
+            names['#booktitle'] = 'Book-Title'
+            expression += "#booktitle = :booktitle"
         if author != "":
-            key['Book-Author'] = {'S':author}
+            values[':bookauthor'] = {'S':author}
+            names['#bookauthor'] = 'Book-Author'
+            if expression != "":
+                expression += " and "
+            expression += "#bookauthor = :bookauthor"
         if publish_year != "":
-            key['Year-Of-Publication'] = {'S':publish_year}
+            values[':publishyear'] = {'S':publish_year}
+            names['#publishyear'] = 'Year-Of-Publication'
+            if expression != "":
+                expression += " AND "
+            expression += "#publishyear = :publishyear"
         if publisher != "":
-            key['Publisher'] = {'S':publisher}
-        response = dynamodb.query(
+            values[':publisher'] = {'S':publisher}
+            names['#publisher'] = 'Publisher'
+            if expression != "":
+                expression += " and "
+            expression += "#publisher = :publisher"
+        if title == "" and author == "" and publish_year == "" and publisher == "":
+            return {
+                "statusCode": 200,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Headers': '*',
+                    'Access-Control-Allow-Methods': 'PUT,POST,GET,OPTIONS',
+                    'Access-Control-Allow-Origin': '*',
+                    'X-Requested-With': '*'
+                },
+                "body": json.dumps({
+                    "results": "Enter the filter conditions before search!"
+                }),
+                "isBase64Encoded": False
+            }
+        print("expressionL:" + expression)
+        print("values:" + str(values))
+        print("names:" + str(names))
+        response = dynamodb.scan(
             TableName = table_name,
-            Key = key
+            FilterExpression = expression,
+            ExpressionAttributeNames = names,
+            ExpressionAttributeValues = values,
         )
-    print('book search done')
-    print("Book search result: " + json.dumps(response, indent=2))
-    # return response['Item']
-    return {
-        "statusCode": 200,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Headers': '*',
-            'Access-Control-Allow-Methods': 'PUT,POST,GET,OPTIONS',
-            'Access-Control-Allow-Origin': '*',
-            'X-Requested-With': '*'
-        },
-        "body": json.dumps({
-            "results": response['Item']
-        }),
-        "isBase64Encoded": False
-    }
+        print('book search scan done')
+        print("Book search scan result: " + json.dumps(response, indent=2))
+
+        return {
+            "statusCode": 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': 'PUT,POST,GET,OPTIONS',
+                'Access-Control-Allow-Origin': '*',
+                'X-Requested-With': '*'
+            },
+            "body": json.dumps({
+                "results": response['Items']
+            }),
+            "isBase64Encoded": False
+        }
